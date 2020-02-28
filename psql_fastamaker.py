@@ -1,11 +1,12 @@
 #/usr/bin/env python
 #Camiel Doorenweerd 2019
+# The script will assume there is a .pgpass file in the root with a line like localhost:5432:fruitfly12_brew:postgres:password
 
 import pandas as pd
 import psycopg2
 import argparse
 
-parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .pgpass file with the password to enter the database is required." )
+parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .pgpass file with the password to access the database is required." )
 parser.add_argument("-o", "--outputfile", metavar="", 
                     help="Output file name")
 parser.add_argument("-m", "--marker", metavar="", 
@@ -18,9 +19,10 @@ args = parser.parse_args()
 outputname = args.outputfile
 marker = args.marker
 listrequest = args.list
+connectstring = "host=localhost dbname=fruitfly12_brew user=postgres port=5432"
 
 def producemarkerlist():
-    conn = psycopg2.connect("host=localhost dbname=fruitfly user=postgres")
+    conn = psycopg2.connect(connectstring)
     sql = "SELECT marker, COUNT(marker) FROM dnaseqs GROUP BY marker;"
     df_markerlist = pd.read_sql_query(sql, conn)
     print(df_markerlist)
@@ -28,7 +30,7 @@ def producemarkerlist():
 
 
 def makefasta(marker,outputname):
-    conn = psycopg2.connect("host=localhost dbname=fruitfly user=postgres")
+    conn = psycopg2.connect(connectstring)
     sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
     df = pd.read_sql_query(sql, conn)
     conn = None
@@ -36,6 +38,7 @@ def makefasta(marker,outputname):
     with open(outputname, 'a') as fasta_output:
         for index, row in df.iterrows():
             fasta_output.write('>' + (str(row['newname'])).replace(" ","_")
+                               + '_' + marker
                                + '\n'
                                + str(row['seq']) + '\n' + '\n')
 
