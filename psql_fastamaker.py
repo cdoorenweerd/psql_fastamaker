@@ -11,6 +11,8 @@ parser.add_argument("-o", "--outputfile", metavar="",
                     help="Output file name")
 parser.add_argument("-m", "--marker", metavar="", 
                     help="Name of the marker, must match database exactly")
+parser.add_argument("-n", "--name", metavar="", default="classic", 
+                    help="taxon naming convention, 'classic' (default), 'barcodingr' or 'monophylizer'")
 parser.add_argument("-l", "--list", action="store_true", 
                     help="Gives a list of the markers in the database")
 args = parser.parse_args()
@@ -19,7 +21,9 @@ args = parser.parse_args()
 outputname = args.outputfile
 marker = args.marker
 listrequest = args.list
+newname = args.name
 connectstring = "host=localhost dbname=fruitfly12_brew user=postgres port=5432"
+
 
 def producemarkerlist():
     conn = psycopg2.connect(connectstring)
@@ -37,10 +41,9 @@ def makefasta(marker,outputname):
     
     with open(outputname, 'a') as fasta_output:
         for index, row in df.iterrows():
-            fasta_output.write('>' + (str(row['newname'])).replace(" ","_")
-                               + '_' + marker
-                               + '\n'
-                               + str(row['seq']) + '\n' + '\n')
+            fasta_output.write('>' + (str(row[newname])).replace(" ","_")
+                                + '\n'
+                                + str(row['seq']) + '\n' + '\n')
 
 if listrequest == True:
     producemarkerlist()
