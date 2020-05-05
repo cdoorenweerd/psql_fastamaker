@@ -15,9 +15,9 @@ parser.add_argument("-m", "--marker", metavar="",
 parser.add_argument("-n", "--name", metavar="", default="classic", 
                     help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold' or 'monophylizer'")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
-                    help="List with sampleID's to include in .csv format")
+                    help="List with sampleID's to select, in .csv format")
 parser.add_argument("-l", "--list", action="store_true", 
-                    help="Gives a list of the markers in the database")
+                    help="Prints a list of the markers in the database to screen")
 args = parser.parse_args()
 
 
@@ -56,20 +56,23 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
         reader = csv.reader(wishlistfile)
         wishlist = list(reader)
         flatwishlist = [name for sublist in wishlist for name in sublist]
-        print("Looking up: " + str(flatwishlist))
+        flatwishliststring = str(flatwishlist)
+        flatwishliststringclean = flatwishliststring.replace("[", "").replace("]", "")
+        print("Looking up sequences for: " + flatwishliststringclean)
 
     conn = psycopg2.connect(connectstring)
-    sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
+    sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND mscode IN (" + flatwishliststringclean + ");"
     df = pd.read_sql_query(sql, conn)
     conn = None
-    df_selection = df[df['mscode'].isin(flatwishlist)] 
+    #print(df)
+    #df_selection = df[df['mscode'].isin(flatwishlist)] 
 
     with open(outputname, 'a') as fasta_output:
-        for index, row in df_selection.iterrows():
+        for index, row in df.iterrows():
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                 + '\n'
                                 + str(row['seq']) + '\n')
-        print("Created " + str(outputname) + " with your selected sequences.")
+        print("Created " + str(outputname) + " with selected sequences.")
 
 
 if listrequest == True:
