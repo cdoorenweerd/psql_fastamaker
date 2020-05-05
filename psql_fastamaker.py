@@ -57,7 +57,7 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
         wishlist = list(reader)
         flatwishlist = [name for sublist in wishlist for name in sublist]
         flatwishliststring = str(flatwishlist).replace("[", "").replace("]", "")
-        print("Looking up sequences for: " + flatwishliststring)
+        print("Looking up sequences for " + len(flatwishlist) + " unique ID's.")
 
     conn = psycopg2.connect(connectstring)
     sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND mscode IN (" + flatwishliststring + ");"
