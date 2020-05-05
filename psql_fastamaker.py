@@ -3,6 +3,7 @@
 # The script will assume there is a .pgpass file in the root with a line like localhost:5432:fruitfly12_brew:postgres:password
 
 import pandas as pd
+import csv
 import psycopg2
 import argparse
 
@@ -10,9 +11,11 @@ parser = argparse.ArgumentParser(description="A script to pull sequences from th
 parser.add_argument("-o", "--outputfile", metavar="", 
                     help="Output file name")
 parser.add_argument("-m", "--marker", metavar="", 
-                    help="Name of the marker, must match database exactly")
+                    help="Name of the marker, must match database exactly (use -l for list of options)")
 parser.add_argument("-n", "--name", metavar="", default="classic", 
-                    help="taxon naming convention, 'classic' (default), 'barcodingr' or 'monophylizer'")
+                    help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold' or 'monophylizer'")
+parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
+                    help="List with sampleID's to include in .csv format")
 parser.add_argument("-l", "--list", action="store_true", 
                     help="Gives a list of the markers in the database")
 args = parser.parse_args()
@@ -22,6 +25,7 @@ outputname = args.outputfile
 marker = args.marker
 listrequest = args.list
 newname = args.name
+wishlistcsv = args.wishlist
 connectstring = "host=localhost dbname=fruitfly12_brew user=postgres port=5432"
 
 
@@ -43,9 +47,37 @@ def makefasta(marker,outputname):
         for index, row in df.iterrows():
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                 + '\n'
-                                + str(row['seq']) + '\n' + '\n')
+                                + str(row['seq']) + '\n')
+
+
+def makeselectedfasta(marker,outputname,wishlistcsv):
+    with open(wishlistcsv, "r", encoding="utf8") as wishlistfile: 
+        reader = csv.reader(wishlistfile)
+        wishlist = list(reader)
+        flatwishlist = [name for sublist in wishlist for name in sublist]
+        print(flatwishlist)
+
+    conn = psycopg2.connect(connectstring)
+    sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
+    df = pd.read_sql_query(sql, conn)
+    conn = None
+    df_selection = df[df['mscode'].isin(flatwishlist)] 
+    print((df_selection))
+    
+    #selection = []
+    with open(outputname, 'a') as fasta_output:
+        for index, row in df_selection.iterrows():
+            #print(df.mscode)
+            #selection.append(df['mscode'])
+            fasta_output.write('>' + (str(row[newname])).replace(" ","_")
+                                + '\n'
+                                + str(row['seq']) + '\n')
+
+
 
 if listrequest == True:
     producemarkerlist()
+elif wishlistcsv != "nolist":
+    makeselectedfasta(marker,outputname,wishlistcsv) 
 else:
     makefasta(marker,outputname)
