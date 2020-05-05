@@ -48,6 +48,7 @@ def makefasta(marker,outputname):
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                 + '\n'
                                 + str(row['seq']) + '\n')
+        print("Created " + str(outputname))
 
 
 def makeselectedfasta(marker,outputname,wishlistcsv):
@@ -55,24 +56,20 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
         reader = csv.reader(wishlistfile)
         wishlist = list(reader)
         flatwishlist = [name for sublist in wishlist for name in sublist]
-        print(flatwishlist)
+        print("Looking up: " + str(flatwishlist))
 
     conn = psycopg2.connect(connectstring)
     sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
     df = pd.read_sql_query(sql, conn)
     conn = None
     df_selection = df[df['mscode'].isin(flatwishlist)] 
-    print((df_selection))
-    
-    #selection = []
+
     with open(outputname, 'a') as fasta_output:
         for index, row in df_selection.iterrows():
-            #print(df.mscode)
-            #selection.append(df['mscode'])
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                 + '\n'
                                 + str(row['seq']) + '\n')
-
+        print("Created " + str(outputname) + " with your selected sequences.")
 
 
 if listrequest == True:
