@@ -12,9 +12,9 @@ import linecache
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .connectstring_databasealias file with the password to access the database is required in the root of where the script is executed." )
-parser.add_argument("-o", "--outputfile", metavar="", 
+parser.add_argument("-o", "--outputfile", metavar="",
                     help="Output file name")
-parser.add_argument("-d", "--database", metavar="", 
+parser.add_argument("-d", "--database", metavar="", required=True,
                     help="Alias of the database to connect to, via the '.connectstring_databasealias' file")
 parser.add_argument("-m", "--marker", metavar="", 
                     help="Name of the marker, must match database exactly (use -l to see list of options)")
