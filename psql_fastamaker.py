@@ -1,6 +1,6 @@
 #/usr/bin/env python
 #Camiel Doorenweerd 2019
-# The script will assume there is a .pgpass file in the root with a line like localhost:5432:fruitfly12_brew:postgres:password
+# The script will assume there is a .connectstring_databasealias file in the root with a line like localhost:5432:fruitfly12_brew:postgres:password
 
 import pandas as pd
 import csv
@@ -11,13 +11,13 @@ import os.path
 import linecache
 from pathlib import Path
 
-parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .pgpass file with the password to access the database is required." )
+parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .connectstring_databasealias file with the password to access the database is required in the root of where the script is executed." )
 parser.add_argument("-o", "--outputfile", metavar="", 
                     help="Output file name")
 parser.add_argument("-d", "--database", metavar="", 
                     help="Alias of the database to connect to, via the '.connectstring_databasealias' file")
 parser.add_argument("-m", "--marker", metavar="", 
-                    help="Name of the marker, must match database exactly (use -l for list of options)")
+                    help="Name of the marker, must match database exactly (use -l to see list of options)")
 parser.add_argument("-n", "--name", metavar="", default="classic", 
                     help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
@@ -45,7 +45,7 @@ def producemarkerlist():
            print("Successfully connected to psql database")
     else:
            sys.exit("Could not connect to psql database: stopping")    
-    sql = "SELECT marker, COUNT(marker) FROM dnaseqs GROUP BY marker;"
+    sql = "SELECT marker, COUNT(marker) FROM renamed_seqs GROUP BY marker;"
     df_markerlist = pd.read_sql_query(sql, conn)
     print(df_markerlist)
     conn = None
