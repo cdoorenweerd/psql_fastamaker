@@ -6,14 +6,20 @@ import pandas as pd
 import csv
 import psycopg2
 import argparse
+import sys
+import os.path
+import linecache
+from pathlib import Path
 
 parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .pgpass file with the password to access the database is required." )
 parser.add_argument("-o", "--outputfile", metavar="", 
                     help="Output file name")
+parser.add_argument("-d", "--database", metavar="", 
+                    help="Alias of the database to connect to, via the '.connectstring_databasealias' file")
 parser.add_argument("-m", "--marker", metavar="", 
                     help="Name of the marker, must match database exactly (use -l for list of options)")
 parser.add_argument("-n", "--name", metavar="", default="classic", 
-                    help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold' or 'monophylizer'")
+                    help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
                     help="List with sampleID's to select, in .csv format")
 parser.add_argument("-l", "--list", action="store_true", 
@@ -26,11 +32,19 @@ marker = args.marker
 listrequest = args.list
 newname = args.name
 wishlistcsv = args.wishlist
-connectstring = "host=localhost dbname=fruitfly12_brew user=postgres port=5432"
+database = args.database
 
+connectstringfile = str('.connectstring_' + database)
+if os.path.exists('./.connectstring_' + database) == False:
+    sys.exit("Missing .connectstring file: stopping")
+connectstring = linecache.getline(filename=connectstringfile, lineno=1)
 
 def producemarkerlist():
     conn = psycopg2.connect(connectstring)
+    if conn.closed == 0:
+           print("Successfully connected to psql database")
+    else:
+           sys.exit("Could not connect to psql database: stopping")    
     sql = "SELECT marker, COUNT(marker) FROM dnaseqs GROUP BY marker;"
     df_markerlist = pd.read_sql_query(sql, conn)
     print(df_markerlist)
@@ -39,6 +53,10 @@ def producemarkerlist():
 
 def makefasta(marker,outputname):
     conn = psycopg2.connect(connectstring)
+    if conn.closed == 0:
+           print("Successfully connected to psql database")
+    else:
+           sys.exit("Could not connect to psql database: stopping") 
     sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
     df = pd.read_sql_query(sql, conn)
     conn = None
@@ -57,9 +75,13 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
         wishlist = list(reader)
         flatwishlist = [name for sublist in wishlist for name in sublist]
         flatwishliststring = str(flatwishlist).replace("[", "").replace("]", "")
-        print("Looking up sequences for " + len(flatwishlist) + " unique ID's.")
+        print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's.")
 
     conn = psycopg2.connect(connectstring)
+    if conn.closed == 0:
+           print("Successfully connected to psql database")
+    else:
+           sys.exit("Could not connect to psql database: stopping") 
     sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND mscode IN (" + flatwishliststring + ");"
     df = pd.read_sql_query(sql, conn)
     conn = None
