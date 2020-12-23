@@ -13,20 +13,14 @@ import linecache
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .connectstring_databasealias file with the password to access the database is required in the root of where the script is executed." )
-parser.add_argument("-o", "--outputfile", metavar="",
-                    help="Output file name")
 parser.add_argument("-d", "--database", metavar="", required=True,
                     help="Alias of the database to connect to, via the '.connectstring_databasealias' file")
-parser.add_argument("-m", "--marker", metavar="", 
-                    help="Name of the marker, must match database exactly (use -l to see list of options)") # to be deprecated with markersets
 parser.add_argument("-s", "--markerset", metavar="", 
                     help="Name of the markerset, must match database exactly (use -l to see list of options)")
 parser.add_argument("-n", "--name", metavar="", default="classic", 
                     help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
                     help="List with sampleID's to select, in .csv format")
-parser.add_argument("-l", "--list", action="store_true", 
-                    help="Prints a list of the markers in the database to screen")
 args = parser.parse_args()
 
 
@@ -63,12 +57,12 @@ def getmarkerlist(markerset):
     return markerlist
 
 
-def producemarkerlist():
-    conn = psycopg2.connect(connectstring)
-    sql = "SELECT marker, COUNT(marker) FROM renamed_seqs GROUP BY marker;"
-    df_markerlist = pd.read_sql_query(sql, conn)
-    print(df_markerlist)
-    conn = None
+#def producemarkerlist():
+#    conn = psycopg2.connect(connectstring)
+#    sql = "SELECT marker, COUNT(marker) FROM renamed_seqs GROUP BY marker;"
+#    df_markerlist = pd.read_sql_query(sql, conn)
+#    print(df_markerlist)
+#    conn = None
 
 
 def makefasta(markerlist):
@@ -112,9 +106,9 @@ def makeselectedfasta(marker,outputname,wishlistcsv): # under construction
 
 conn_check()
 
-if listrequest == True:
-    producemarkerlist()
-elif wishlistcsv != "nolist":
+#if listrequest == True:
+#    producemarkerlist()
+if wishlistcsv != "nolist":
     makeselectedfasta(marker,outputname,wishlistcsv) 
 else:
     markerlist = getmarkerlist(markerset)
