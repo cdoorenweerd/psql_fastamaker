@@ -17,7 +17,9 @@ parser.add_argument("-o", "--outputfile", metavar="",
 parser.add_argument("-d", "--database", metavar="", required=True,
                     help="Alias of the database to connect to, via the '.connectstring_databasealias' file")
 parser.add_argument("-m", "--marker", metavar="", 
-                    help="Name of the marker, must match database exactly (use -l to see list of options)")
+                    help="Name of the marker, must match database exactly (use -l to see list of options)") # to be deprecated with markersets
+parser.add_argument("-s", "--markerset", metavar="", 
+                    help="Name of the markerset, must match database exactly (use -l to see list of options)")
 parser.add_argument("-n", "--name", metavar="", default="classic", 
                     help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
@@ -39,6 +41,20 @@ connectstringfile = str('.connectstring_' + database)
 if os.path.exists('./.connectstring_' + database) == False:
     sys.exit("Missing .connectstring file: stopping")
 connectstring = linecache.getline(filename=connectstringfile, lineno=1)
+
+
+def getmarkerset(markerset):
+    conn = psycopg2.connect(connectstring)
+    if conn.closed == 0:
+           print("Successfully connected to psql database")
+    else:
+           sys.exit("Could not connect to psql database: stopping")    
+    sql = "SELECT markers FROM markersets WHERE markerset = '" + markerset + "';"
+    df_markerset = pd.read_sql_query(sql, conn)
+    markerlist = list(map(str, df_markerset['markers'][0].split(",")))
+    conn = None
+    return markerlist
+
 
 def producemarkerlist():
     conn = psycopg2.connect(connectstring)
