@@ -7,6 +7,7 @@ import csv
 import psycopg2
 import argparse
 import sys
+import time
 import os.path
 import linecache
 from pathlib import Path
@@ -29,13 +30,15 @@ parser.add_argument("-l", "--list", action="store_true",
 args = parser.parse_args()
 
 
-Path("./output_alignments").mkdir(parents=True, exist_ok=True)
-outputname = args.outputfile
 marker = args.marker
 listrequest = args.list
 newname = args.name
 wishlistcsv = args.wishlist
 database = args.database
+markerset = args.markerset
+Path("./output_alignments").mkdir(parents=True, exist_ok=True)
+datetoday = time.strftime("%Y%m%d")
+
 
 connectstringfile = str('.connectstring_' + database)
 if os.path.exists('./.connectstring_' + database) == False:
@@ -43,12 +46,16 @@ if os.path.exists('./.connectstring_' + database) == False:
 connectstring = linecache.getline(filename=connectstringfile, lineno=1)
 
 
-def getmarkerset(markerset):
+def conn_check():
     conn = psycopg2.connect(connectstring)
     if conn.closed == 0:
            print("Successfully connected to psql database")
     else:
-           sys.exit("Could not connect to psql database: stopping")    
+           sys.exit("Could not connect to psql database: stopping") 
+
+
+def getmarkerlist(markerset):
+    conn = psycopg2.connect(connectstring)
     sql = "SELECT markers FROM markersets WHERE markerset = '" + markerset + "';"
     df_markerset = pd.read_sql_query(sql, conn)
     markerlist = list(map(str, df_markerset['markers'][0].split(",")))
@@ -58,36 +65,30 @@ def getmarkerset(markerset):
 
 def producemarkerlist():
     conn = psycopg2.connect(connectstring)
-    if conn.closed == 0:
-           print("Successfully connected to psql database")
-    else:
-           sys.exit("Could not connect to psql database: stopping")    
     sql = "SELECT marker, COUNT(marker) FROM renamed_seqs GROUP BY marker;"
     df_markerlist = pd.read_sql_query(sql, conn)
     print(df_markerlist)
     conn = None
 
 
-def makefasta(marker,outputname):
-    conn = psycopg2.connect(connectstring)
-    if conn.closed == 0:
-           print("Successfully connected to psql database")
-    else:
-           sys.exit("Could not connect to psql database: stopping") 
-    sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
-    df = pd.read_sql_query(sql, conn)
-    conn = None
-    
-    outputpathname = 'output_alignments/' + outputname
-    with open(outputpathname, 'a') as fasta_output:
-        for index, row in df.iterrows():
-            fasta_output.write('>' + (str(row[newname])).replace(" ","_")
-                                + '\n'
-                                + str(row['seq']) + '\n')
-        print("Created " + str(outputname))
+def makefasta(markerlist):
+    for marker in markerlist:
+        conn = psycopg2.connect(connectstring)
+        sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
+        df = pd.read_sql_query(sql, conn)
+        conn = None
+
+        outputname = datetoday + '_' + marker + '.fas'
+        outputpathname = 'output_alignments/' + outputname
+        with open(outputpathname, 'a') as fasta_output:
+            for index, row in df.iterrows():
+                fasta_output.write('>' + (str(row[newname])).replace(" ","_")
+                                    + '\n'
+                                    + str(row['seq']) + '\n')
+            print("Created " + str(outputname))
 
 
-def makeselectedfasta(marker,outputname,wishlistcsv):
+def makeselectedfasta(marker,outputname,wishlistcsv): # under construction
     with open(wishlistcsv, "r", encoding="utf8") as wishlistfile: 
         reader = csv.reader(wishlistfile)
         wishlist = list(reader)
@@ -96,10 +97,6 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
         print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's.")
 
     conn = psycopg2.connect(connectstring)
-    if conn.closed == 0:
-           print("Successfully connected to psql database")
-    else:
-           sys.exit("Could not connect to psql database: stopping") 
     sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND mscode IN (" + flatwishliststring + ");"
     df = pd.read_sql_query(sql, conn)
     conn = None
@@ -113,9 +110,12 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
         print("Created " + str(outputname) + " with selected sequences.")
 
 
+conn_check()
+
 if listrequest == True:
     producemarkerlist()
 elif wishlistcsv != "nolist":
     makeselectedfasta(marker,outputname,wishlistcsv) 
 else:
-    makefasta(marker,outputname)
+    markerlist = getmarkerlist(markerset)
+    makefasta(markerlist)
