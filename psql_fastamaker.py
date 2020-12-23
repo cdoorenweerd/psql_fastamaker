@@ -15,7 +15,7 @@ from pathlib import Path
 parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .connectstring_databasealias file with the password to access the database is required in the root of where the script is executed." )
 parser.add_argument("-d", "--database", metavar="", required=True,
                     help="Alias of the database to connect to, via the '.connectstring_databasealias' file")
-parser.add_argument("-s", "--markerset", metavar="", 
+parser.add_argument("-s", "--markerset", metavar="", required=True,
                     help="Name of the markerset, must match database exactly (use -l to see list of options)")
 parser.add_argument("-n", "--name", metavar="", default="classic", 
                     help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
@@ -24,8 +24,6 @@ parser.add_argument("-w", "--wishlist", metavar="", default="nolist",
 args = parser.parse_args()
 
 
-marker = args.marker
-listrequest = args.list
 newname = args.name
 wishlistcsv = args.wishlist
 database = args.database
@@ -52,8 +50,8 @@ def getmarkerlist(markerset):
     conn = psycopg2.connect(connectstring)
     sql = "SELECT markers FROM markersets WHERE markerset = '" + markerset + "';"
     df_markerset = pd.read_sql_query(sql, conn)
-    markerlist = list(map(str, df_markerset['markers'][0].split(",")))
     conn = None
+    markerlist = list(map(str, df_markerset['markers'][0].split(",")))
     return markerlist
 
 
@@ -82,34 +80,35 @@ def makefasta(markerlist):
             print("Created " + str(outputname))
 
 
-def makeselectedfasta(marker,outputname,wishlistcsv): # under construction
+def makeselectedfasta(markerlist,wishlistcsv):
     with open(wishlistcsv, "r", encoding="utf8") as wishlistfile: 
         reader = csv.reader(wishlistfile)
         wishlist = list(reader)
         flatwishlist = [name for sublist in wishlist for name in sublist]
         flatwishliststring = str(flatwishlist).replace("[", "").replace("]", "")
-        print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's.")
+        print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's in " + str(len(markerlist)) + " markers")
 
-    conn = psycopg2.connect(connectstring)
-    sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND mscode IN (" + flatwishliststring + ");"
-    df = pd.read_sql_query(sql, conn)
-    conn = None
+    for marker in markerlist:
+        conn = psycopg2.connect(connectstring)
+        sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND mscode IN (" + flatwishliststring + ");"
+        df = pd.read_sql_query(sql, conn)
+        conn = None
 
-    outputpathname = 'output_alignments/' + outputname
-    with open(outputpathname, 'a') as fasta_output:
-        for index, row in df.iterrows():
-            fasta_output.write('>' + (str(row[newname])).replace(" ","_")
-                                + '\n'
-                                + str(row['seq']) + '\n')
-        print("Created " + str(outputname) + " with selected sequences.")
+        if not df.empty:
+            outputname = datetoday + '_' + marker + '.fas'
+            outputpathname = 'output_alignments/' + outputname
+            with open(outputpathname, 'a') as fasta_output:
+                for index, row in df.iterrows():
+                    fasta_output.write('>' + (str(row[newname])).replace(" ","_")
+                                        + '\n'
+                                        + str(row['seq']) + '\n')
+                print("Created " + str(outputname) + " with selected sequences.")
 
 
 conn_check()
+markerlist = getmarkerlist(markerset)
 
-#if listrequest == True:
-#    producemarkerlist()
 if wishlistcsv != "nolist":
-    makeselectedfasta(marker,outputname,wishlistcsv) 
+    makeselectedfasta(markerlist,wishlistcsv) 
 else:
-    markerlist = getmarkerlist(markerset)
     makefasta(markerlist)
