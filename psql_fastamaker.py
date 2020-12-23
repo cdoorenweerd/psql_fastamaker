@@ -27,9 +27,9 @@ parser.add_argument("-l", "--list", action="store_true",
 args = parser.parse_args()
 
 
-Path("./output").mkdir(parents=True, exist_ok=True)
+Path("./output_alignments").mkdir(parents=True, exist_ok=True)
 outputname = args.outputfile
-outputpathname = 'output/' + outputname
+outputpathname = 'output_alignments/' + outputname
 marker = args.marker
 listrequest = args.list
 newname = args.name
