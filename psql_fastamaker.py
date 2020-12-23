@@ -27,7 +27,9 @@ parser.add_argument("-l", "--list", action="store_true",
 args = parser.parse_args()
 
 
+Path("./output").mkdir(parents=True, exist_ok=True)
 outputname = args.outputfile
+outputpathname = 'output/' + outputname
 marker = args.marker
 listrequest = args.list
 newname = args.name
@@ -61,7 +63,7 @@ def makefasta(marker,outputname):
     df = pd.read_sql_query(sql, conn)
     conn = None
     
-    with open(outputname, 'a') as fasta_output:
+    with open(outputpathname, 'a') as fasta_output:
         for index, row in df.iterrows():
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                 + '\n'
@@ -86,7 +88,7 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
     df = pd.read_sql_query(sql, conn)
     conn = None
 
-    with open(outputname, 'a') as fasta_output:
+    with open(outputpathname, 'a') as fasta_output:
         for index, row in df.iterrows():
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                 + '\n'
