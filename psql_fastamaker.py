@@ -31,19 +31,16 @@ markerset = args.markerset
 Path("./output_alignments").mkdir(parents=True, exist_ok=True)
 datetoday = time.strftime("%Y%m%d")
 
-
 connectstringfile = str('.connectstring_' + database)
 if os.path.exists('./.connectstring_' + database) == False:
     sys.exit("Missing .connectstring file: stopping")
 connectstring = linecache.getline(filename=connectstringfile, lineno=1)
-
-
-def conn_check():
-    conn = psycopg2.connect(connectstring)
-    if conn.closed == 0:
-           print("Successfully connected to psql database")
-    else:
-           sys.exit("Could not connect to psql database: stopping") 
+conn = psycopg2.connect(connectstring)
+if conn.closed == 0:
+    print("Successfully connected to psql database")
+else:
+    sys.exit("Could not connect to psql database: stopping") 
+conn = None
 
 
 def getmarkerlist(markerset):
@@ -97,7 +94,6 @@ def makeselectedfasta(markerlist,wishlistcsv):
                 print("Created " + str(outputname) + " with selected sequences.")
 
 
-conn_check()
 markerlist = getmarkerlist(markerset)
 
 if wishlistcsv != "nolist":
