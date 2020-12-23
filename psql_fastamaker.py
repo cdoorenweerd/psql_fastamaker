@@ -29,7 +29,6 @@ args = parser.parse_args()
 
 Path("./output_alignments").mkdir(parents=True, exist_ok=True)
 outputname = args.outputfile
-outputpathname = 'output_alignments/' + outputname
 marker = args.marker
 listrequest = args.list
 newname = args.name
@@ -63,6 +62,7 @@ def makefasta(marker,outputname):
     df = pd.read_sql_query(sql, conn)
     conn = None
     
+    outputpathname = 'output_alignments/' + outputname
     with open(outputpathname, 'a') as fasta_output:
         for index, row in df.iterrows():
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
@@ -88,6 +88,7 @@ def makeselectedfasta(marker,outputname,wishlistcsv):
     df = pd.read_sql_query(sql, conn)
     conn = None
 
+    outputpathname = 'output_alignments/' + outputname
     with open(outputpathname, 'a') as fasta_output:
         for index, row in df.iterrows():
             fasta_output.write('>' + (str(row[newname])).replace(" ","_")
