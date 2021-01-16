@@ -92,7 +92,9 @@ def makeselectedfasta(markerlist,wishlistcsv):
                                         + '\n'
                                         + str(row['seq']) + '\n')
                 print("Found " + str(len(df)) + " sequence(s)")
-                print("Created " + str(outputname) + " with selected sequence(s).")
+                print("Created " + str(outputname) + " with selected sequence(s)")
+        else:
+            print("Could not find any sequences")
 
 
 markerlist = getmarkerlist(markerset)
