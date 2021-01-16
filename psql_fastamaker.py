@@ -75,7 +75,7 @@ def makeselectedfasta(markerlist,wishlistcsv):
         wishlist = list(reader)
         flatwishlist = [name for sublist in wishlist for name in sublist]
         flatwishliststring = str(flatwishlist).replace("[", "").replace("]", "")
-        print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's in " + str(len(markerlist)) + " markers")
+        print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's in " + str(len(markerlist)) + " marker(s)")
 
     for marker in markerlist:
         conn = psycopg2.connect(connectstring)
@@ -91,7 +91,8 @@ def makeselectedfasta(markerlist,wishlistcsv):
                     fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                         + '\n'
                                         + str(row['seq']) + '\n')
-                print("Created " + str(outputname) + " with selected sequences.")
+                print("Found " + str(len(df)) + " sequence(s)")
+                print("Created " + str(outputname) + " with selected sequence(s).")
 
 
 markerlist = getmarkerlist(markerset)
