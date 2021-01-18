@@ -83,7 +83,9 @@ def makeselectedfasta(markerlist,wishlistcsv):
         df = pd.read_sql_query(sql, conn)
         conn = None
 
-        if not df.empty:
+        if df.empty:
+            print("Could not find any sequences")
+        else:
             outputname = datetoday + '_' + marker + '.fas'
             outputpathname = 'output_alignments/' + outputname
             with open(outputpathname, 'a') as fasta_output:
@@ -93,8 +95,7 @@ def makeselectedfasta(markerlist,wishlistcsv):
                                         + str(row['seq']) + '\n')
                 print("Found " + str(len(df)) + " sequence(s)")
                 print("Created " + str(outputname) + " with selected sequence(s)")
-        else:
-            print("Could not find any sequences")
+            
 
 
 markerlist = getmarkerlist(markerset)
