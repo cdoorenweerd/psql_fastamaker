@@ -34,7 +34,7 @@ datetoday = time.strftime("%Y%m%d")
 connectstringfile = str('.connectstring_' + database)
 if os.path.exists('./.connectstring_' + database) == False:
     sys.exit("Missing .connectstring file: stopping")
-connectstring = linecache.getline(filename=connectstringfile, lineno=1)
+connectstring = linecache.getline(filename=connectstringfile, lineno=1).rstrip('\n')
 conn = psycopg2.connect(connectstring)
 if conn.closed == 0:
     print("Successfully connected to psql database")
