@@ -1,6 +1,6 @@
 #/usr/bin/env python
-#Camiel Doorenweerd 2019
-# The script will assume there is a .connectstring_databasealias file in the root with a line like localhost:5432:fruitfly12_brew:postgres:password
+# Camiel Doorenweerd 2019
+# The script will assume there is a .connectstring_databasealias file in the root with a line like 'host=195.163.50.12 port=2222 dbname=dacini user=postgres password=secretpassword'
 
 import pandas as pd
 import csv
