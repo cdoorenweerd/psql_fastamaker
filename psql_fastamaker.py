@@ -66,7 +66,7 @@ def makefasta(markerlist):
                 fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                     + '\n'
                                     + str(row['seq']) + '\n')
-            print("Created " + str(outputname))
+            print("Created " + str(outputname) + " with " + str(len(df)) + " sequences")
 
 
 def makeselectedfasta(markerlist,wishlistcsv):
