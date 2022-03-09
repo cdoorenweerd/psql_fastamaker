@@ -45,7 +45,7 @@ conn = None
 
 def getmarkerlist(markerset):
     conn = psycopg2.connect(connectstring)
-    sql = "SELECT markers FROM markersets WHERE markerset = '" + markerset + "';"
+    sql = "SELECT markers FROM dna_markersets WHERE markerset = '" + markerset + "';"
     df_markerset = pd.read_sql_query(sql, conn)
     conn = None
     markerlist = list(map(str, df_markerset['markers'][0].split(",")))
@@ -59,7 +59,7 @@ def makefasta(markerlist):
         df = pd.read_sql_query(sql, conn)
         conn = None
 
-        outputname = datetoday + '_' + marker + '.fas'
+        outputname = datetoday + '_' + database + '_' + marker + '.fas'
         outputpathname = 'output_alignments/' + outputname
         with open(outputpathname, 'a') as fasta_output:
             for index, row in df.iterrows():
