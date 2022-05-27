@@ -15,16 +15,16 @@ from pathlib import Path
 parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .connectstring_databasealias file with the password to access the database is required in the root of where the script is executed." )
 parser.add_argument("-d", "--database", metavar="", required=True,
                     help="Alias of the database to connect to, via the '.connectstring_databasealias' file")
-parser.add_argument("-s", "--markerset", metavar="", required=True,
+parser.add_argument("-m", "--markerset", metavar="", required=True,
                     help="Name of the markerset, must match database exactly (use -l to see list of options)")
-parser.add_argument("-n", "--name", metavar="", default="classic", 
+parser.add_argument("-n", "--naming", metavar="", default="classic", 
                     help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
                     help="List with sampleID's to select, in .csv format")
 args = parser.parse_args()
 
 
-newname = args.name
+newname = args.naming
 wishlistcsv = args.wishlist
 database = args.database
 markerset = args.markerset
@@ -42,6 +42,16 @@ else:
     sys.exit("Could not connect to psql database: stopping") 
 conn = None
 
+
+def markersetcheck(markerset):
+    conn = psycopg2.connect(connectstring)
+    sql = "SELECT markerset FROM dna_markersets;"
+    df_markersetoverview = pd.read_sql_query(sql, conn)
+    conn = None
+    if markerset not in df_markersetoverview.values:
+        print("Your selected markerset is invalid, pick one of the following:")
+        print(df_markersetoverview)
+        sys.exit()
 
 def getmarkerlist(markerset):
     conn = psycopg2.connect(connectstring)
@@ -79,7 +89,7 @@ def makeselectedfasta(markerlist,wishlistcsv):
 
     for marker in markerlist:
         conn = psycopg2.connect(connectstring)
-        sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND mscode IN (" + flatwishliststring + ");"
+        sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND extractcode IN (" + flatwishliststring + ");"
         df = pd.read_sql_query(sql, conn)
         conn = None
 
@@ -97,7 +107,7 @@ def makeselectedfasta(markerlist,wishlistcsv):
                 print("Created " + str(outputname) + " with selected sequence(s)")
             
 
-
+markersetcheck(markerset)
 markerlist = getmarkerlist(markerset)
 
 if wishlistcsv != "nolist":
