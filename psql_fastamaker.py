@@ -97,18 +97,16 @@ def makefasta(df, marker):
         tmpname = '.tmpunaligned.fas'
         outputpathname = 'output_alignments/' + outputname
         if args.align == "no":
-            print("no align")
             with open(outputpathname, 'a') as fasta_output:
                 for index, row in df.iterrows():
                     fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                         + '\n'
                                         + str(row['seq']) + '\n')
-                print("Found " + str(len(df)) + " sequence(s)")
-                print("Created " + str(outputname) + " with selected sequence(s)")
+                print("Found " + str(len(df)) + " sequence(s)" + " of " + marker)
+                print("Created " + str(outputname))
         elif args.align == "yes":
-            print("align yes")
             if which("mafft") is None:
-                print("Could not find a MAFFT executable, exiting...")
+                print("Could not find a MAFFT executable, exiting")
                 sys.exit()
             else:
                 with open(tmpname, 'a') as fasta_output:
@@ -116,12 +114,12 @@ def makefasta(df, marker):
                         fasta_output.write('>' + (str(row[newname])).replace(" ","_")
                                             + '\n'
                                             + str(row['seq']) + '\n')           
-                    print("Found " + str(len(df)) + " sequence(s)")
-                print("Aligning sequences using MAFFT...")
+                    print("Found " + str(len(df)) + " sequence(s)" + " of " + marker)
+                print("Aligning with MAFFT...")
                 mafftcommand = str('zsh -c "mafft --auto --quiet "' + tmpname + ' > ' + outputpathname)
                 subprocess.run(mafftcommand, shell=True)
                 subprocess.run('rm .tmpunaligned.fas', shell=True)
-                print("Created " + str(outputname) + " with selected aligned sequence(s)")
+                print("Created " + str(outputname))
         
 
 markersetcheck(markerset)
