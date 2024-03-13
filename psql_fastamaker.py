@@ -1,5 +1,5 @@
 #/usr/bin/env python
-# Camiel Doorenweerd 2019
+# Camiel Doorenweerd 2024
 # The script will assume there is a .connectstring_databasealias file in the root with a line like 'host=195.163.50.12 port=2222 dbname=dacini user=postgres password=secretpassword'
 
 import pandas as pd
@@ -10,6 +10,8 @@ import sys
 import time
 import os.path
 import linecache
+import subprocess
+from shutil import which
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description="A script to pull sequences from the psql database with the latest identifications and write to FASTA. A .connectstring_databasealias file with the password to access the database is required in the root of where the script is executed." )
@@ -19,6 +21,8 @@ parser.add_argument("-m", "--markerset", metavar="", required=True,
                     help="Name of the markerset, must match database exactly (use -l to see list of options)")
 parser.add_argument("-n", "--naming", metavar="", default="classic", 
                     help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
+parser.add_argument("-a", "--align", metavar="", default="no", 
+                    help="Align sequences using MAFFT, yes or no (default)")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
                     help="List with sampleID's to select, in .csv format")
 args = parser.parse_args()
@@ -33,7 +37,7 @@ datetoday = time.strftime("%Y%m%d")
 
 connectstringfile = str('.connectstring_' + database)
 if os.path.exists('./.connectstring_' + database) == False:
-    sys.exit("Missing .connectstring file: stopping")
+    sys.exit("Missing .connectstring file for database " + database + " : stopping")
 connectstring = linecache.getline(filename=connectstringfile, lineno=1).rstrip('\n')
 conn = psycopg2.connect(connectstring)
 if conn.closed == 0:
@@ -62,42 +66,38 @@ def getmarkerlist(markerset):
     return markerlist
 
 
-def makefasta(markerlist):
-    for marker in markerlist:
-        conn = psycopg2.connect(connectstring)
-        sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
-        df = pd.read_sql_query(sql, conn)
-        conn = None
+def lookupseqs(markerlist,wishlistcsv):
+    if wishlistcsv == "nolist":
+        for marker in markerlist:
+            conn = psycopg2.connect(connectstring)
+            sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
+            df = pd.read_sql_query(sql, conn)
+            conn = None
+            makefasta(df, marker)
+    else:
+        with open(wishlistcsv, "r", encoding="utf8") as wishlistfile: 
+            reader = csv.reader(wishlistfile)
+            wishlist = list(reader)
+            flatwishlist = [name for sublist in wishlist for name in sublist]
+            flatwishliststring = str(flatwishlist).replace("[", "").replace("]", "")
+            print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's in " + str(len(markerlist)) + " marker(s)")
+        for marker in markerlist:
+            conn = psycopg2.connect(connectstring)
+            sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND extractcode IN (" + flatwishliststring + ");"
+            df = pd.read_sql_query(sql, conn)
+            conn = None
+            makefasta(df, marker)
 
+
+def makefasta(df, marker):
+    if df.empty:
+        print("Could not find any sequences")
+    else:
         outputname = datetoday + '_' + database + '_' + marker + '.fas'
+        tmpname = '.tmpunaligned.fas'
         outputpathname = 'output_alignments/' + outputname
-        with open(outputpathname, 'a') as fasta_output:
-            for index, row in df.iterrows():
-                fasta_output.write('>' + (str(row[newname])).replace(" ","_")
-                                    + '\n'
-                                    + str(row['seq']) + '\n')
-            print("Created " + str(outputname) + " with " + str(len(df)) + " sequences")
-
-
-def makeselectedfasta(markerlist,wishlistcsv):
-    with open(wishlistcsv, "r", encoding="utf8") as wishlistfile: 
-        reader = csv.reader(wishlistfile)
-        wishlist = list(reader)
-        flatwishlist = [name for sublist in wishlist for name in sublist]
-        flatwishliststring = str(flatwishlist).replace("[", "").replace("]", "")
-        print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's in " + str(len(markerlist)) + " marker(s)")
-
-    for marker in markerlist:
-        conn = psycopg2.connect(connectstring)
-        sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND extractcode IN (" + flatwishliststring + ");"
-        df = pd.read_sql_query(sql, conn)
-        conn = None
-
-        if df.empty:
-            print("Could not find any sequences")
-        else:
-            outputname = datetoday + '_' + marker + '.fas'
-            outputpathname = 'output_alignments/' + outputname
+        if args.align == "no":
+            print("no align")
             with open(outputpathname, 'a') as fasta_output:
                 for index, row in df.iterrows():
                     fasta_output.write('>' + (str(row[newname])).replace(" ","_")
@@ -105,12 +105,25 @@ def makeselectedfasta(markerlist,wishlistcsv):
                                         + str(row['seq']) + '\n')
                 print("Found " + str(len(df)) + " sequence(s)")
                 print("Created " + str(outputname) + " with selected sequence(s)")
-            
+        elif args.align == "yes":
+            print("align yes")
+            if which("mafft") is None:
+                print("Could not find a MAFFT executable, exiting...")
+                sys.exit()
+            else:
+                with open(tmpname, 'a') as fasta_output:
+                    for index, row in df.iterrows():
+                        fasta_output.write('>' + (str(row[newname])).replace(" ","_")
+                                            + '\n'
+                                            + str(row['seq']) + '\n')           
+                    print("Found " + str(len(df)) + " sequence(s)")
+                print("Aligning sequences using MAFFT...")
+                mafftcommand = str('zsh -c "mafft --auto --quiet "' + tmpname + ' > ' + outputpathname)
+                subprocess.run(mafftcommand, shell=True)
+                subprocess.run('rm .tmpunaligned.fas', shell=True)
+                print("Created " + str(outputname) + " with selected aligned sequence(s)")
+        
 
 markersetcheck(markerset)
 markerlist = getmarkerlist(markerset)
-
-if wishlistcsv != "nolist":
-    makeselectedfasta(markerlist,wishlistcsv) 
-else:
-    makefasta(markerlist)
+lookupseqs(markerlist,wishlistcsv)
