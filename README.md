@@ -14,13 +14,13 @@ A python script to generate a FASTA file from sequences stored in a postgresql d
 
 - ```-n --naming```. Optional, select the naming convention as defined in the postgresql database, e.g., bold, barcodingr, pycoistats, etc. Default "classic".
 
-- ```-a --align```. Optional, yes or no (default), when 'yes', will use MAFFT from the path to align sequences per marker. Assumes MAFFT is installed; recommended installation method is with conda.
+- ```-a --align```. Optional, yes (default) or no, when 'yes', will use MAFFT from the path to align sequences per marker. Assumes MAFFT is installed; recommended installation method is with conda.
 
 - ```-w --wishlist```. Optional, provide a list with specimen identifiers for which sequences will be looked up. One line per identifier.
 
 ### fastas_to_spreadsheet.py
 
-This script is mainly used to add new sequences to the postgresql database by converting a fasta file to a csv and excel spreadsheet. It will include all .fas and .fasta files in its current folder. This will only work on fasta failes that have a single line per sequence. Optional arguments:
+This script is mainly used to add new sequences to the postgresql database by converting a fasta file to a csv and excel spreadsheet. It will include all .fas and .fasta files in its current folder. This will only work on fasta files that have a single line per sequence. Optional arguments:
 
 - ```-t --trimN```. Removes 'N's from the sequence when given.
 - ```-g --gaps```. Removes '-'s from the sequence when given.
