@@ -20,9 +20,9 @@ parser.add_argument("-d", "--database", metavar="", required=True,
 parser.add_argument("-m", "--markerset", metavar="", required=True,
                     help="Name of the markerset, must match database exactly (use -l to see list of options)")
 parser.add_argument("-n", "--naming", metavar="", default="classic", 
-                    help="Sequence identifier naming convention, 'classic' (default), 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
-parser.add_argument("-a", "--align", metavar="", default="no", 
-                    help="Align sequences using MAFFT, yes or no (default)")
+                    help="Sequence identifier naming convention, 'classic' (default), 'camiel', 'barcodingr', 'bold', 'pycoistats' or 'monophylizer'")
+parser.add_argument("-a", "--align", metavar="", default="yes", 
+                    help="Align sequences using MAFFT, yes (default) or no")
 parser.add_argument("-w", "--wishlist", metavar="", default="nolist", 
                     help="List with sampleID's to select, in .csv format")
 args = parser.parse_args()

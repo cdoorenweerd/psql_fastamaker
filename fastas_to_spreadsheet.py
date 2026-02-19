@@ -21,7 +21,7 @@ for fasta in fastas:
     with open(fasta) as ifile:
         for line in ifile:
             if line.startswith(">"):
-                dnasequence = str(next(ifile, '').upper())
+                dnasequence = str(next(ifile, '').upper())[:-1]
                 if args.trimN: dnasequence = dnasequence.replace('N','')
                 if args.gaps: dnasequence = dnasequence.replace('-','')
                 seqs.append({'sourcefile': fasta,
@@ -29,5 +29,5 @@ for fasta in fastas:
                              'seq': dnasequence})
 
 df = pd.DataFrame(seqs)
-df.to_csv('test.csv', index=False)
-df.to_excel('test.xlsx', index=False)
+df.to_csv('sequences.csv', index=False)
+df.to_excel('sequences.xlsx', index=False)
