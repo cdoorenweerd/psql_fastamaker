@@ -25,7 +25,7 @@ for fasta in fastas:
                 if args.trimN: dnasequence = dnasequence.replace('N','')
                 if args.gaps: dnasequence = dnasequence.replace('-','')
                 seqs.append({'sourcefile': fasta,
-                             'seqname': line.replace('>',''),
+                             'seqname': str(line.replace('>',''))[:-1],
                              'seq': dnasequence})
 
 df = pd.DataFrame(seqs)
