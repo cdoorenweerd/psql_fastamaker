@@ -1,6 +1,6 @@
 #/usr/bin/env python
-# Camiel Doorenweerd 2024
-# The script will assume there is a .connectstring_databasealias file in the root with a line like 'host=195.163.50.12 port=2222 dbname=dacini user=postgres password=secretpassword'
+# Camiel Doorenweerd 2026
+# The script needs a .connectstring_databasealias file with SQL connection info in SQLalchemy format
 
 import os
 import pandas as pd
@@ -47,7 +47,7 @@ def psqlconnectiontest(database):
         with engine.connect() as conn:
             print(f"Successfully connected to psql database: {database}")
         return engine # return engine so you can pass it directly to pd.read_sql_query()
-    
+
     except Exception as e:
         sys.exit(f"Could not connect to psql database: stopping\nError: {e}")
 
@@ -71,19 +71,15 @@ def getmarkerlist(engine, markerset):
 
 
 def makefasta(df, marker):
-    #def makefasta(df, marker, datetoday, database, newname, align):
     """
     Generates a FASTA file from a pandas DataFrame and optionally aligns it using MAFFT.
     """
     if df.empty:
         print("Could not find any sequences")
         return
-
     outputname = f"{datetoday}_{database}_{marker}.fas"
     outputpathname = os.path.join('output_alignments', outputname)
     tmpname = '.tmpunaligned.fas'
-    
-    # Pre-calculate counts and formatted names to avoid loop overhead
     seq_count = len(df)
     
     # 1. Handle unaligned fasta output directly
@@ -92,7 +88,6 @@ def makefasta(df, marker):
             for row in df.itertuples():
                 header = str(getattr(row, newname)).replace(" ", "_")
                 fasta_output.write(f">{header}\n{row.seq}\n")
-        
         print(f"Found {seq_count} sequence(s) of {marker}")
         print(f"Created {outputname}")
         
@@ -101,23 +96,16 @@ def makefasta(df, marker):
         if which("mafft") is None:
             print("Could not find a MAFFT executable, exiting")
             sys.exit()
-            
         with open(tmpname, 'w') as fasta_output:
             for row in df.itertuples():
                 header = str(getattr(row, newname)).replace(" ", "_")
                 fasta_output.write(f">{header}\n{row.seq}\n")
-        
         print(f"Found {seq_count} sequence(s) of {marker}")
         print("Aligning with MAFFT...")
-        
-        # Run MAFFT in a subprocess
         with open(outputpathname, 'w') as out_file:
             subprocess.run(["mafft", "--auto", "--quiet", tmpname], stdout=out_file, check=True)
-            
-        # Remove unaligned temporary files
         if os.path.exists(tmpname):
             os.remove(tmpname)
-            
         print(f"Created {outputname}")
 
 
