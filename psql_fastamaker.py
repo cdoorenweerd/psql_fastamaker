@@ -11,6 +11,7 @@ import time
 import os.path
 import linecache
 import subprocess
+from sqlalchemy import create_engine
 from shutil import which
 from pathlib import Path
 
@@ -35,43 +36,56 @@ markerset = args.markerset
 Path("./output_alignments").mkdir(parents=True, exist_ok=True)
 datetoday = time.strftime("%Y%m%d")
 
-connectstringfile = str('.connectstring_' + database)
-if os.path.exists('./.connectstring_' + database) == False:
-    sys.exit("Missing .connectstring file for database " + database + " : stopping")
-connectstring = linecache.getline(filename=connectstringfile, lineno=1).rstrip('\n')
-conn = psycopg2.connect(connectstring)
-if conn.closed == 0:
-    print("Successfully connected to psql database")
-else:
-    sys.exit("Could not connect to psql database: stopping") 
-conn = None
+def psqlconnectiontest(database):
+    connectstringfile = f"./.connectstring_{database}"
+    if not os.path.exists(connectstringfile):
+        sys.exit(f"Missing .connectstring file for database {database} : stopping")
+    connectstring = linecache.getline(connectstringfile, 1).rstrip('\n')
+    try:
+        engine = create_engine(connectstring)
+        with engine.connect() as conn:
+            print(f"Successfully connected to psql database: {database}")
+        return engine # return engine so you can pass it directly to pd.read_sql_query()
+    
+    except Exception as e:
+        sys.exit(f"Could not connect to psql database: stopping\nError: {e}")
 
 
-def markersetcheck(markerset):
-    conn = psycopg2.connect(connectstring)
+#connectstringfile = str('.connectstring_' + database)
+#if os.path.exists('./.connectstring_' + database) == False:
+#    sys.exit("Missing .connectstring file for database " + database + " : stopping")
+#connectstring = linecache.getline(filename=connectstringfile, lineno=1).rstrip('\n')
+#conn = psycopg2.connect(connectstring)
+#if conn.closed == 0:
+#    print("Successfully connected to psql database")
+#else:
+#    sys.exit("Could not connect to psql database: stopping") 
+#conn = None
+
+
+def markersetcheck(engine, markerset):
     sql = "SELECT markerset FROM dna_markersets;"
-    df_markersetoverview = pd.read_sql_query(sql, conn)
+    df_markersetoverview = pd.read_sql_query(sql, engine)
     conn = None
     if markerset not in df_markersetoverview.values:
         print("Your selected markerset is invalid, pick one of the following:")
         print(df_markersetoverview)
         sys.exit()
 
-def getmarkerlist(markerset):
-    conn = psycopg2.connect(connectstring)
+
+def getmarkerlist(engine, markerset):
     sql = "SELECT markers FROM dna_markersets WHERE markerset = '" + markerset + "';"
-    df_markerset = pd.read_sql_query(sql, conn)
+    df_markerset = pd.read_sql_query(sql, engine)
     conn = None
     markerlist = list(map(str, df_markerset['markers'][0].split(",")))
     return markerlist
 
 
-def lookupseqs(markerlist,wishlistcsv):
+def lookupseqs(engine, markerlist, wishlistcsv):
     if wishlistcsv == "nolist":
         for marker in markerlist:
-            conn = psycopg2.connect(connectstring)
             sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
-            df = pd.read_sql_query(sql, conn)
+            df = pd.read_sql_query(sql, engine)
             conn = None
             makefasta(df, marker)
     else:
@@ -82,9 +96,8 @@ def lookupseqs(markerlist,wishlistcsv):
             flatwishliststring = str(flatwishlist).replace("[", "").replace("]", "")
             print("Looking up sequences for " + str(len(flatwishlist)) + " unique ID's in " + str(len(markerlist)) + " marker(s)")
         for marker in markerlist:
-            conn = psycopg2.connect(connectstring)
             sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "' AND extractcode IN (" + flatwishliststring + ");"
-            df = pd.read_sql_query(sql, conn)
+            df = pd.read_sql_query(sql, engine)
             conn = None
             makefasta(df, marker)
 
@@ -122,6 +135,14 @@ def makefasta(df, marker):
                 print("Created " + str(outputname))
         
 
-markersetcheck(markerset)
-markerlist = getmarkerlist(markerset)
-lookupseqs(markerlist,wishlistcsv)
+# test connection with database and return SQLAlchemy connection engine if successful
+engine = psqlconnectiontest(database)
+
+# check is selected markerset is available or give list of which ones are
+markersetcheck(engine, markerset)
+
+# create a list of the markers requested
+markerlist = getmarkerlist(engine, markerset)
+
+# find the sequences for each requested marker and optionally wishlist, optionally align, and write into FASTA file
+lookupseqs(engine, markerlist, wishlistcsv)
