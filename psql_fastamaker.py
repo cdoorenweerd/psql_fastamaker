@@ -2,13 +2,13 @@
 # Camiel Doorenweerd 2024
 # The script will assume there is a .connectstring_databasealias file in the root with a line like 'host=195.163.50.12 port=2222 dbname=dacini user=postgres password=secretpassword'
 
+import os
 import pandas as pd
 import csv
 import psycopg2
 import argparse
 import sys
 import time
-import os.path
 import linecache
 import subprocess
 from sqlalchemy import create_engine
@@ -33,7 +33,8 @@ newname = args.naming
 wishlistcsv = args.wishlist
 database = args.database
 markerset = args.markerset
-Path("./output_alignments").mkdir(parents=True, exist_ok=True)
+align = args.align
+os.makedirs('output_alignments', exist_ok=True)
 datetoday = time.strftime("%Y%m%d")
 
 def psqlconnectiontest(database):
@@ -49,18 +50,6 @@ def psqlconnectiontest(database):
     
     except Exception as e:
         sys.exit(f"Could not connect to psql database: stopping\nError: {e}")
-
-
-#connectstringfile = str('.connectstring_' + database)
-#if os.path.exists('./.connectstring_' + database) == False:
-#    sys.exit("Missing .connectstring file for database " + database + " : stopping")
-#connectstring = linecache.getline(filename=connectstringfile, lineno=1).rstrip('\n')
-#conn = psycopg2.connect(connectstring)
-#if conn.closed == 0:
-#    print("Successfully connected to psql database")
-#else:
-#    sys.exit("Could not connect to psql database: stopping") 
-#conn = None
 
 
 def markersetcheck(engine, markerset):
@@ -79,6 +68,57 @@ def getmarkerlist(engine, markerset):
     conn = None
     markerlist = list(map(str, df_markerset['markers'][0].split(",")))
     return markerlist
+
+
+def makefasta(df, marker):
+    #def makefasta(df, marker, datetoday, database, newname, align):
+    """
+    Generates a FASTA file from a pandas DataFrame and optionally aligns it using MAFFT.
+    """
+    if df.empty:
+        print("Could not find any sequences")
+        return
+
+    outputname = f"{datetoday}_{database}_{marker}.fas"
+    outputpathname = os.path.join('output_alignments', outputname)
+    tmpname = '.tmpunaligned.fas'
+    
+    # Pre-calculate counts and formatted names to avoid loop overhead
+    seq_count = len(df)
+    
+    # 1. Handle unaligned fasta output directly
+    if align == "no":
+        with open(outputpathname, 'w') as fasta_output: 
+            for row in df.itertuples():
+                header = str(getattr(row, newname)).replace(" ", "_")
+                fasta_output.write(f">{header}\n{row.seq}\n")
+        
+        print(f"Found {seq_count} sequence(s) of {marker}")
+        print(f"Created {outputname}")
+        
+    # 2. Handle aligned fasta output using MAFFT
+    elif align == "yes":
+        if which("mafft") is None:
+            print("Could not find a MAFFT executable, exiting")
+            sys.exit()
+            
+        with open(tmpname, 'w') as fasta_output:
+            for row in df.itertuples():
+                header = str(getattr(row, newname)).replace(" ", "_")
+                fasta_output.write(f">{header}\n{row.seq}\n")
+        
+        print(f"Found {seq_count} sequence(s) of {marker}")
+        print("Aligning with MAFFT...")
+        
+        # Run MAFFT in a subprocess
+        with open(outputpathname, 'w') as out_file:
+            subprocess.run(["mafft", "--auto", "--quiet", tmpname], stdout=out_file, check=True)
+            
+        # Remove unaligned temporary files
+        if os.path.exists(tmpname):
+            os.remove(tmpname)
+            
+        print(f"Created {outputname}")
 
 
 def lookupseqs(engine, markerlist, wishlistcsv):
@@ -101,39 +141,6 @@ def lookupseqs(engine, markerlist, wishlistcsv):
             conn = None
             makefasta(df, marker)
 
-
-def makefasta(df, marker):
-    if df.empty:
-        print("Could not find any sequences")
-    else:
-        outputname = datetoday + '_' + database + '_' + marker + '.fas'
-        tmpname = '.tmpunaligned.fas'
-        outputpathname = 'output_alignments/' + outputname
-        if args.align == "no":
-            with open(outputpathname, 'a') as fasta_output:
-                for index, row in df.iterrows():
-                    fasta_output.write('>' + (str(row[newname])).replace(" ","_")
-                                        + '\n'
-                                        + str(row['seq']) + '\n')
-                print("Found " + str(len(df)) + " sequence(s)" + " of " + marker)
-                print("Created " + str(outputname))
-        elif args.align == "yes":
-            if which("mafft") is None:
-                print("Could not find a MAFFT executable, exiting")
-                sys.exit()
-            else:
-                with open(tmpname, 'a') as fasta_output:
-                    for index, row in df.iterrows():
-                        fasta_output.write('>' + (str(row[newname])).replace(" ","_")
-                                            + '\n'
-                                            + str(row['seq']) + '\n')           
-                    print("Found " + str(len(df)) + " sequence(s)" + " of " + marker)
-                print("Aligning with MAFFT...")
-                mafftcommand = str('zsh -c "mafft --auto --quiet "' + tmpname + ' > ' + outputpathname)
-                subprocess.run(mafftcommand, shell=True)
-                subprocess.run('rm .tmpunaligned.fas', shell=True)
-                print("Created " + str(outputname))
-        
 
 # test connection with database and return SQLAlchemy connection engine if successful
 engine = psqlconnectiontest(database)
