@@ -52,20 +52,22 @@ def psqlconnectiontest(database):
         sys.exit(f"Could not connect to psql database: stopping\nError: {e}")
 
 
-def markersetcheck(engine, markerset):
-    sql = "SELECT markerset FROM dna_markersets;"
-    df_markersetoverview = pd.read_sql_query(sql, engine)
-    conn = None
-    if markerset not in df_markersetoverview.values:
+def get_marker_list(engine, markerset):
+    """
+    Validates the requested markerset against the database. 
+    Returns a list of markers if valid, otherwise prints available options and exits.
+    """
+    # 1. Try to fetch the specific markerset directly
+    sql = f"SELECT markers FROM dna_markersets WHERE markerset = '{markerset}';"
+    df_markerset = pd.read_sql_query(sql, engine)
+    # 2. If the dataframe is empty, the markerset is invalid
+    if df_markerset.empty:
         print("Your selected markerset is invalid, pick one of the following:")
+        sql_overview = "SELECT markerset FROM dna_markersets;"
+        df_markersetoverview = pd.read_sql_query(sql_overview, engine)
         print(df_markersetoverview)
         sys.exit()
-
-
-def getmarkerlist(engine, markerset):
-    sql = "SELECT markers FROM dna_markersets WHERE markerset = '" + markerset + "';"
-    df_markerset = pd.read_sql_query(sql, engine)
-    conn = None
+    # 3. If valid, process and return the marker list
     markerlist = list(map(str, df_markerset['markers'][0].split(",")))
     return markerlist
 
@@ -81,7 +83,6 @@ def makefasta(df, marker):
     outputpathname = os.path.join('output_alignments', outputname)
     tmpname = '.tmpunaligned.fas'
     seq_count = len(df)
-    
     # 1. Handle unaligned fasta output directly
     if align == "no":
         with open(outputpathname, 'w') as fasta_output: 
@@ -90,7 +91,6 @@ def makefasta(df, marker):
                 fasta_output.write(f">{header}\n{row.seq}\n")
         print(f"Found {seq_count} sequence(s) of {marker}")
         print(f"Created {outputname}")
-        
     # 2. Handle aligned fasta output using MAFFT
     elif align == "yes":
         if which("mafft") is None:
@@ -130,14 +130,11 @@ def lookupseqs(engine, markerlist, wishlistcsv):
             makefasta(df, marker)
 
 
-# test connection with database and return SQLAlchemy connection engine if successful
+# Test database connection and return SQLAlchemy connection engine if successful
 engine = psqlconnectiontest(database)
 
-# check is selected markerset is available or give list of which ones are
-markersetcheck(engine, markerset)
+# Create a list of the markers requested, if markerset is invalid show options
+markerlist = get_marker_list(engine, markerset)
 
-# create a list of the markers requested
-markerlist = getmarkerlist(engine, markerset)
-
-# find the sequences for each requested marker and optionally wishlist, optionally align, and write into FASTA file
+# Find the sequences for each requested marker and optionally wishlist, optionally align, and write into FASTA file
 lookupseqs(engine, markerlist, wishlistcsv)
