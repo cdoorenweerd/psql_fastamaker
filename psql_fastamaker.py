@@ -12,6 +12,7 @@ import time
 import linecache
 import subprocess
 from sqlalchemy import create_engine
+from sqlalchemy import text
 from shutil import which
 from pathlib import Path
 
@@ -47,7 +48,6 @@ def psqlconnectiontest(database):
         with engine.connect() as conn:
             print(f"Successfully connected to psql database: {database}")
         return engine # return engine so you can pass it directly to pd.read_sql_query()
-
     except Exception as e:
         sys.exit(f"Could not connect to psql database: stopping\nError: {e}")
 
@@ -83,7 +83,15 @@ def makefasta(df, marker):
     outputpathname = os.path.join('output_alignments', outputname)
     tmpname = '.tmpunaligned.fas'
     seq_count = len(df)
-    # 1. Handle unaligned fasta output directly
+    # 1. Check if requested naming convention exists in dataframe
+    try:
+        df[newname] # this will raise an error if newname is not in dataframe headers
+    except KeyError as e:
+        print(f"❌ Error: Could not find the column {e} to rename sequences")
+        print("📋 Available columns in the dataframe are:")
+        print(list(df.columns))
+        sys.exit()
+    # 2. Handle unaligned fasta output directly
     if align == "no":
         with open(outputpathname, 'w') as fasta_output: 
             for row in df.itertuples():
@@ -91,7 +99,7 @@ def makefasta(df, marker):
                 fasta_output.write(f">{header}\n{row.seq}\n")
         print(f"Found {seq_count} sequence(s) of {marker}")
         print(f"Created {outputname}")
-    # 2. Handle aligned fasta output using MAFFT
+    # 3. Handle aligned fasta output using MAFFT
     elif align == "yes":
         if which("mafft") is None:
             print("Could not find a MAFFT executable, exiting")
@@ -111,12 +119,24 @@ def makefasta(df, marker):
 
 def lookupseqs(engine, markerlist, wishlistcsv):
     if wishlistcsv == "nolist":
-        for marker in markerlist:
-            sql = "SELECT * FROM renamed_seqs WHERE marker = '" + marker + "';"
-            df = pd.read_sql_query(sql, engine)
-            conn = None
-            makefasta(df, marker)
+        # 1. Convert your list into a tuple for the SQL IN clause
+        marker_tuple = tuple(markerlist)
+        # 2. Secure parameterized SQLalchemy query to fetch all markers at once
+        sql = text("SELECT * FROM renamed_seqs WHERE marker IN :markers;")
+        # 3. Read all matching data into a single DataFrame
+        df_all = pd.read_sql_query(sql, engine, params={"markers": marker_tuple})
+        # 4. Group the DataFrame by 'marker' and loop through the chunks locally
+        for marker, df_group in df_all.groupby('marker'):
+            makefasta(df_group, marker)
     else:
+        # The following commented section needs to be tested.
+        #with open(wishlistcsv, "r", encoding='utf8') as wishlistfile:
+        #    reader = csv.reader(wishlistfile)
+        #    wishlist_tuple = tuple(cell.strip() for row in reader for cell in row if cell.strip())
+        #    sql = text("SELECT * FROM renamed_seqs WHERE marker = :marker AND extractcode IN :wishlist;")
+        #    df_all = pd.read_sql_query(sql, engine, params={"marker": marker, "wishlist": wishlist_tuple})
+        #    for marker, df_group in df_all.groupby('marker'):
+        #        makefasta(df_group, marker)
         with open(wishlistcsv, "r", encoding="utf8") as wishlistfile: 
             reader = csv.reader(wishlistfile)
             wishlist = list(reader)
@@ -130,11 +150,9 @@ def lookupseqs(engine, markerlist, wishlistcsv):
             makefasta(df, marker)
 
 
-# Test database connection and return SQLAlchemy connection engine if successful
+# 1. Test database connection and return SQLAlchemy connection engine if successful
 engine = psqlconnectiontest(database)
-
-# Create a list of the markers requested, if markerset is invalid show options
+# 2. Create a list of the requested markers
 markerlist = get_marker_list(engine, markerset)
-
-# Find the sequences for each requested marker and optionally wishlist, optionally align, and write into FASTA file
+# 3. Find the sequences for each requested marker and optionally wishlist, align, and write into FASTA file
 lookupseqs(engine, markerlist, wishlistcsv)
